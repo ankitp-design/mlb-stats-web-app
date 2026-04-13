@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>MLB Stat Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            font-size: 16px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1a3a5c 50%, #0d2137 100%);
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            color: #fff;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #c8102e 0%, #041e42 50%, #c8102e 100%);
+            padding: 16px 16px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border-bottom: 3px solid #f5c518;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .header p {
+            color: #f5c518;
+            font-size: 0.72rem;
+            margin-top: 3px;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 16px 14px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 18px;
+        }
+
+        .step { display: flex; align-items: center; gap: 5px; }
+
+        .step-num {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+            border: 2px solid rgba(255,255,255,0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .step-num.active { background: #c8102e; border-color: #f5c518; box-shadow: 0 0 12px rgba(245,197,24,0.4); }
+        .step-num.completed { background: #2ecc71; border-color: #27ae60; }
+
+        .step-label {
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.5);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .step-label.active { color: #f5c518; }
+        .step-divider { width: 24px; height: 2px; background: rgba(255,255,255,0.2); flex-shrink: 0; }
+
+        .card {
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 22px 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .step-title { text-align: center; margin-bottom: 22px; }
+        .step-title h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: 5px; }
+        .step-title p { color: rgba(255,255,255,0.55); font-size: 0.82rem; line-height: 1.4; }
+
+        .player-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+        .player-type-btn {
+            background: rgba(255,255,255,0.06);
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 28px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            color: #fff;
+            -webkit-appearance: none;
+            appearance: none;
+            min-height: 130px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+        .player-type-btn:active { background: rgba(200,16,46,0.25); border-color: #c8102e; transform: scale(0.97); }
+        .player-type-btn .icon { font-size: 3rem; line-height: 1; }
+        .player-type-btn .label { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .player-type-btn .sublabel { font-size: 0.72rem; color: rgba(255,255,255,0.5); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+        .stat-btn {
+            background: rgba(255,255,255,0.06);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 14px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            color: #fff;
+            -webkit-appearance: none;
+            appearance: none;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            width: 100%;
+        }
+        .stat-btn:active { background: rgba(4,30,66,0.6); border-color: #f5c518; transform: scale(0.95); }
+        .stat-btn .stat-abbr { font-size: 1.3rem; font-weight: 800; color: #f5c518; line-height: 1; }
+        .stat-btn .stat-name { font-size: 0.62rem; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; text-align: center; }
+
+        .search-section { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+        .selection-summary {
+            background: rgba(245,197,24,0.1);
+            border: 1px solid rgba(245,197,24,0.3);
+            border-radius: 10px;
+            padding: 10px 16px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+        }
+        .selection-summary span { font-size: 0.78rem; color: #f5c518; font-weight: 600; }
+        .selection-summary strong { color: #fff; }
+
+        /* Search input area */
+        .search-input-wrapper {
+            width: 100%;
+            position: relative;
+            z-index: 200;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 18px;
+            font-size: 16px; /* Must be 16px to prevent iOS auto-zoom */
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 14px;
+            color: #fff;
+            outline: none;
+            transition: border-color 0.3s;
+            -webkit-appearance: none;
+            appearance: none;
+            font-family: inherit;
+            display: block;
+            caret-color: #f5c518;
+        }
+        .search-input::placeholder { color: rgba(255,255,255,0.35); }
+        .search-input:focus { border-color: #f5c518; background: rgba(255,255,255,0.1); }
+
+        /* Status message shown below input */
+        .search-status {
+            width: 100%;
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.45);
+            min-height: 20px;
+            padding: 2px 0;
+        }
+        .search-status.loading { color: #f5c518; }
+        .search-status.error { color: #e74c3c; }
+
+        /* Dropdown list - now OUTSIDE the wrapper, full width */
+        .autocomplete-list {
+            width: 100%;
+            background: #132640;
+            border: 1.5px solid rgba(245,197,24,0.3);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+
+        .autocomplete-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            background: transparent;
+            transition: background 0.15s;
+        }
+        .autocomplete-item:last-child { border-bottom: none; }
+        .autocomplete-item:active { background: rgba(200,16,46,0.35); }
+
+        .autocomplete-item .player-name { font-weight: 700; font-size: 1rem; color: #fff; }
+        .autocomplete-item .player-team { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+
+        .no-results {
+            padding: 16px;
+            text-align: center;
+            color: rgba(255,255,255,0.4);
+            font-size: 0.85rem;
+        }
+
+        /* Selected player confirmation pill */
+        .selected-player-pill {
+            width: 100%;
+            background: rgba(46,204,113,0.15);
+            border: 1.5px solid rgba(46,204,113,0.4);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .selected-player-pill .pill-name { font-weight: 700; font-size: 0.95rem; color: #2ecc71; }
+        .selected-player-pill .pill-change {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.45);
+            background: rgba(255,255,255,0.08);
+            border: none;
+            border-radius: 20px;
+            padding: 5px 12px;
+            cursor: pointer;
+            color: rgba(255,255,255,0.6);
+            font-family: inherit;
+            -webkit-appearance: none;
+            white-space: nowrap;
+        }
+
+        .search-btn {
+            width: 100%;
+            padding: 17px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #c8102e, #a00d24);
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            -webkit-appearance: none;
+            appearance: none;
+            font-family: inherit;
+            min-height: 56px;
+        }
+        .search-btn:active:not(:disabled) { transform: scale(0.97); box-shadow: 0 8px 25px rgba(200,16,46,0.5); }
+        .search-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        .api-note { font-size: 0.72rem; color: rgba(255,255,255,0.25); text-align: center; }
+
+        .back-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 50px;
+            padding: 9px 18px;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-bottom: 18px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            font-family: inherit;
+        }
+        .back-btn:active { background: rgba(255,255,255,0.14); color: #fff; }
+
+        .results-section { margin-top: 18px; }
+
+        .loading { text-align: center; padding: 40px 20px; }
+        .loading-spinner {
+            width: 44px; height: 44px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #c8102e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        .loading p { font-size: 0.9rem; color: rgba(255,255,255,0.7); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .result-card {
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 20px 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .player-avatar {
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #c8102e, #041e42);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            border: 2px solid rgba(245,197,24,0.4);
+            flex-shrink: 0;
+        }
+
+        .player-info h2 { font-size: 1.1rem; font-weight: 800; line-height: 1.2; }
+        .player-info .player-meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+        .meta-badge { background: rgba(255,255,255,0.1); padding: 3px 9px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,0.8); }
+
+        .drought-display { text-align: center; margin: 18px 0; }
+        .drought-number {
+            font-size: 4.5rem; font-weight: 900; line-height: 1;
+            background: linear-gradient(135deg, #f5c518, #e8a000);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .drought-label { font-size: 0.9rem; color: rgba(255,255,255,0.65); margin-top: 8px; text-transform: uppercase; letter-spacing: 1.5px; line-height: 1.4; }
+        .drought-stat { color: #f5c518; font-weight: 700; }
+        .drought-last { color: rgba(255,255,255,0.45); font-size: 0.78rem; margin-top: 8px; }
+        .drought-active { color: #2ecc71; font-size: 0.9rem; font-weight: 600; margin-top: 8px; }
+
+        .drought-meter { margin: 18px 0; background: rgba(255,255,255,0.1); border-radius: 10px; height: 10px; overflow: hidden; }
+        .drought-fill { height: 100%; border-radius: 10px; transition: width 1s ease; }
+
+        .stats-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+        .summary-box { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 14px 8px; text-align: center; border: 1px solid rgba(255,255,255,0.08); }
+        .summary-box .val { font-size: 1.6rem; font-weight: 800; color: #f5c518; line-height: 1; }
+        .summary-box .lbl { font-size: 0.62rem; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; line-height: 1.3; }
+
+        .game-log-section { margin-top: 22px; }
+        .game-log-section h3 { font-size: 0.85rem; font-weight: 700; margin-bottom: 12px; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.8px; }
+
+        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 10px; }
+
+        .game-log-table { width: 100%; min-width: 300px; border-collapse: collapse; font-size: 0.8rem; }
+        .game-log-table th { background: rgba(4,30,66,0.6); padding: 9px 10px; text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.55); font-weight: 600; white-space: nowrap; }
+        .game-log-table td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
+        .game-log-table tr:last-child td { border-bottom: none; }
+        .game-log-table tr.success-row td { background: rgba(46,204,113,0.1); }
+
+        .stat-value { font-weight: 700; color: #2ecc71; }
+        .stat-zero { color: rgba(255,255,255,0.25); }
+
+        .hot-badge { display: inline-block; background: linear-gradient(135deg, #ff6b35, #e8000d); padding: 3px 9px; border-radius: 20px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-left: 6px; vertical-align: middle; }
+        .cold-badge { display: inline-block; background: linear-gradient(135deg, #2980b9, #1a5276); padding: 3px 9px; border-radius: 20px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-left: 6px; vertical-align: middle; }
+
+        .error-msg { text-align: center; padding: 30px 16px; color: rgba(255,255,255,0.65); }
+        .error-msg .error-icon { font-size: 2.5rem; margin-bottom: 12px; }
+        .error-msg h3 { font-size: 1.1rem; margin-bottom: 8px; }
+        .error-msg p { font-size: 0.85rem; line-height: 1.5; }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>⚾ MLB STAT TRACKER</h1>
+    <p>PLAYER DROUGHT ANALYZER • 2026 SEASON</p>
+</div>
+
+<div class="container">
+    <div class="step-indicator" id="stepIndicator">
+        <div class="step">
+            <div class="step-num active" id="stepNum1">1</div>
+            <div class="step-label active" id="stepLabel1">Position</div>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step">
+            <div class="step-num" id="stepNum2">2</div>
+            <div class="step-label" id="stepLabel2">Stat</div>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step">
+            <div class="step-num" id="stepNum3">3</div>
+            <div class="step-label" id="stepLabel3">Player</div>
+        </div>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="card" id="step1">
+        <div class="step-title">
+            <h2>Choose Player Type</h2>
+            <p>Select whether you want to look up a pitcher or a batter</p>
+        </div>
+        <div class="player-type-grid">
+            <button class="player-type-btn" onclick="selectPlayerType('batter')">
+                <span class="icon">🏏</span>
+                <div class="label">Batter</div>
+                <div class="sublabel">Hitting Stats</div>
+            </button>
+            <button class="player-type-btn" onclick="selectPlayerType('pitcher')">
+                <span class="icon">⚾</span>
+                <div class="label">Pitcher</div>
+                <div class="sublabel">Pitching Stats</div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="card" id="step2" style="display:none;">
+        <button class="back-btn" onclick="goBack(1)">← Back</button>
+        <div class="step-title">
+            <h2>Choose a Statistic</h2>
+            <p>Select the stat category you want to track</p>
+        </div>
+        <div class="stats-grid" id="statsGrid"></div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="card" id="step3" style="display:none;">
+        <button class="back-btn" onclick="goBack(2)">← Back</button>
+        <div class="step-title">
+            <h2>Find a Player</h2>
+            <p>Start typing a player name below</p>
+        </div>
+        <div class="search-section">
+            <div class="selection-summary" id="selectionSummary"></div>
+
+            <!-- Search input -->
+            <div class="search-input-wrapper" id="searchInputWrapper">
+                <input
+                    type="text"
+                    class="search-input"
+                    id="playerSearch"
+                    placeholder="Type player name..."
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="words"
+                    spellcheck="false"
+                />
+            </div>
+
+            <!-- Status line -->
+            <div class="search-status" id="searchStatus"></div>
+
+            <!-- Dropdown renders here, outside the wrapper -->
+            <div class="autocomplete-list" id="autocompleteList" style="display:none;"></div>
+
+            <!-- Selected player confirmation -->
+            <div class="selected-player-pill" id="selectedPill" style="display:none;">
+                <span class="pill-name" id="pillName"></span>
+                <button class="pill-change" onclick="clearSelection()">Change</button>
+            </div>
+
+            <button class="search-btn" id="searchBtn" onclick="fetchPlayerData()" disabled>
+                🔍 Analyze Player
+            </button>
+            <div class="api-note">Data powered by MLB Stats API</div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-section" id="resultsSection" style="display:none;"></div>
+</div>
+
+<script>
+    const state = {
+        playerType: null,
+        stat: null,
+        statKey: null,
+        statLabel: null,
+        statAbbr: null,
+        player: null,
+        playerId: null
+    };
+
+    const BATTER_STATS = [
+        { key: 'hits',        label: 'Hits',         abbr: 'H',   apiField: 'hits' },
+        { key: 'homeRuns',    label: 'Home Runs',    abbr: 'HR',  apiField: 'homeRuns' },
+        { key: 'rbi',         label: 'RBI',          abbr: 'RBI', apiField: 'rbi' },
+        { key: 'stolenBases', label: 'Stolen Bases', abbr: 'SB',  apiField: 'stolenBases' },
+        { key: 'doubles',     label: 'Doubles',      abbr: '2B',  apiField: 'doubles' },
+        { key: 'triples',     label: 'Triples',      abbr: '3B',  apiField: 'triples' },
+        { key: 'walks',       label: 'Walks',        abbr: 'BB',  apiField: 'baseOnBalls' },
+        { key: 'strikeOuts',  label: 'Strikeouts',   abbr: 'K',   apiField: 'strikeOuts' },
+        { key: 'runs',        label: 'Runs',         abbr: 'R',   apiField: 'runs' },
+        { key: 'totalBases',  label: 'Total Bases',  abbr: 'TB',  apiField: 'totalBases' },
+    ];
+
+    const PITCHER_STATS = [
+        { key: 'strikeOuts',     label: 'Strikeouts',   abbr: 'K',   apiField: 'strikeOuts' },
+        { key: 'wins',           label: 'Wins',         abbr: 'W',   apiField: 'wins' },
+        { key: 'inningsPitched', label: 'Inn. Pitched', abbr: 'IP',  apiField: 'inningsPitched' },
+        { key: 'earnedRuns',     label: 'Earned Runs',  abbr: 'ER',  apiField: 'earnedRuns' },
+        { key: 'walks',          label: 'Walks',        abbr: 'BB',  apiField: 'baseOnBalls' },
+        { key: 'hitBatsmen',     label: 'Hit Batters',  abbr: 'HBP', apiField: 'hitBatsmen' },
+        { key: 'homeRuns',       label: 'HR Allowed',   abbr: 'HR',  apiField: 'homeRuns' },
+        { key: 'saves',          label: 'Saves',        abbr: 'SV',  apiField: 'saves' },
+    ];
+
+    // ── Navigation ─────────────────────────────────────────────────────────
+    function showStep(n) {
+        ['step1','step2','step3'].forEach((id, i) => {
+            document.getElementById(id).style.display = (i + 1 === n) ? 'block' : 'none';
+        });
+        document.getElementById('resultsSection').style.display = 'none';
+        updateStepIndicator(n);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateStepIndicator(active) {
+        for (let i = 1; i <= 3; i++) {
+            const num = document.getElementById(`stepNum${i}`);
+            const lbl = document.getElementById(`stepLabel${i}`);
+            num.className = 'step-num';
+            lbl.className = 'step-label';
+            if (i < active) { num.classList.add('completed'); num.innerHTML = '✓'; }
+            else { num.innerHTML = i; }
+            if (i === active) { num.classList.add('active'); lbl.classList.add('active'); }
+        }
+    }
+
+    function goBack(step) {
+        showStep(step);
+        if (step === 1) { state.playerType = null; state.stat = null; allPlayers = []; }
+        if (step === 2) { state.stat = null; }
+    }
+
+    // ── Step 1 ─────────────────────────────────────────────────────────────
+    function selectPlayerType(type) {
+        state.playerType = type;
+        allPlayers = [];
+        playersLoaded = false;
+        const stats = type === 'batter' ? BATTER_STATS : PITCHER_STATS;
+        const grid = document.getElementById('statsGrid');
+        grid.innerHTML = '';
+        stats.forEach(s => {
+            const btn = document.createElement('button');
+            btn.className = 'stat-btn';
+            btn.innerHTML = `<span class="stat-abbr">${s.abbr}</span><div class="stat-name">${s.label}</div>`;
+            btn.onclick = () => selectStat(s);
+            grid.appendChild(btn);
+        });
+        showStep(2);
+    }
+
+    // ── Step 2 ─────────────────────────────────────────────────────────────
+    function selectStat(s) {
+        state.stat = s.apiField;
+        state.statKey = s.key;
+        state.statLabel = s.label;
+        state.statAbbr = s.abbr;
+        document.getElementById('selectionSummary').innerHTML = `
+            <span>Type: <strong>${state.playerType === 'batter' ? '🏏 Batter' : '⚾ Pitcher'}</strong></span>
+            <span>Stat: <strong>${s.abbr} – ${s.label}</strong></span>
+        `;
+        // Reset search UI
+        clearSelection();
+        document.getElementById('playerSearch').value = '';
+        setStatus('');
+        showStep(3);
+        // Pre-load player list in background as soon as step 3 shows
+        preloadPlayers();
+    }
+
+    // ── Player List Loading ─────────────────────────────────────────────────
+    let allPlayers = [];
+    let playersLoaded = false;
+    let playersLoading = false;
+
+    async function preloadPlayers() {
+        if (playersLoaded || playersLoading) return;
+        playersLoading = true;
+        setStatus('Loading player roster...', 'loading');
+        try {
+            const url = 'https://statsapi.mlb.com/api/v1/sports/1/players?season=2026';
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            allPlayers = data.people || [];
+            playersLoaded = true;
+            playersLoading = false;
+            setStatus('✓ Roster loaded — start typing a name', '');
+        } catch(e) {
+            playersLoading = false;
+            setStatus('Could not load roster. Check your connection and try again.', 'error');
+            console.error('Player load error:', e);
+        }
+    }
+
+    function setStatus(msg, type) {
+        const el = document.getElementById('searchStatus');
+        el.textContent = msg;
+        el.className = 'search-status' + (type ? ' ' + type : '');
+    }
+
+    // ── Autocomplete ────────────────────────────────────────────────────────
+    let searchTimeout = null;
+
+    function setupSearch() {
+        const input = document.getElementById('playerSearch');
+
+        input.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const val = this.value.trim();
+
+            if (val.length < 2) {
+                hideDropdown();
+                return;
+            }
+
+            if (!playersLoaded) {
+                setStatus('Still loading roster, please wait...', 'loading');
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                runSearch(val);
+            }, 250);
+        });
+
+        // On focus, re-run search if there's already text
+        input.addEventListener('focus', function() {
+            const val = this.value.trim();
+            if (val.length >= 2 && playersLoaded) {
+                runSearch(val);
+            }
+        });
+    }
+
+    function runSearch(query) {
+        const q = query.toLowerCase();
+        const filtered = allPlayers.filter(p => {
+            const nameMatch = p.fullName.toLowerCase().includes(q);
+            const pos = p.primaryPosition?.abbreviation || '';
+            const posMatch = state.playerType === 'pitcher' ? pos === 'P' : pos !== 'P';
+            return nameMatch && posMatch;
+        }).slice(0, 8);
+
+        showDropdown(filtered);
+    }
+
+    function showDropdown(players) {
+        const list = document.getElementById('autocompleteList');
+
+        if (players.length === 0) {
+            list.innerHTML = '<div class="no-results">No players found. Try a different spelling.</div>';
+            list.style.display = 'block';
+            return;
+        }
+
+        list.innerHTML = '';
+        players.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.innerHTML = `
+                <div class="player-name">${p.fullName}</div>
+                <div class="player-team">${p.primaryPosition?.abbreviation || ''} · ${p.currentTeam?.name || 'MLB'}</div>
+            `;
+
+            // Use both touchstart and click for maximum compatibility
+            let touchMoved = false;
+
+            item.addEventListener('touchstart', function(e) {
+                touchMoved = false;
+            }, { passive: true });
+
+            item.addEventListener('touchmove', function(e) {
+                touchMoved = true;
+            }, { passive: true });
+
+            item.addEventListener('touchend', function(e) {
+                if (!touchMoved) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectPlayer(p);
+                }
+            });
+
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault(); // prevent input blur before click fires
+                selectPlayer(p);
+            });
+
+            list.appendChild(item);
+        });
+
+        list.style.display = 'block';
+    }
+
+    function hideDropdown() {
+        document.getElementById('autocompleteList').style.display = 'none';
+    }
+
+    function selectPlayer(p) {
+        state.player = p.fullName;
+        state.playerId = p.id;
+
+        // Hide input, show pill
+        document.getElementById('searchInputWrapper').style.display = 'none';
+        document.getElementById('pillName').textContent = '✅ ' + p.fullName;
+        document.getElementById('selectedPill').style.display = 'flex';
+        hideDropdown();
+        setStatus('');
+
+        // Enable button
+        document.getElementById('searchBtn').disabled = false;
+
+        // Dismiss keyboard
+        document.getElementById('playerSearch').blur();
+    }
+
+    function clearSelection() {
+        state.player = null;
+        state.playerId = null;
+        document.getElementById('searchBtn').disabled = true;
+        document.getElementById('selectedPill').style.display = 'none';
+        document.getElementById('searchInputWrapper').style.display = 'block';
+        document.getElementById('playerSearch').value = '';
+        hideDropdown();
+        setTimeout(() => {
+            document.getElementById('playerSearch').focus();
+        }, 100);
+    }
+
+    // ── Fetch & Analyze ─────────────────────────────────────────────────────
+    async function fetchPlayerData() {
+        if (!state.playerId) return;
+        showLoading();
+        try {
+            const splits = await fetchGameLog(state.playerId, state.playerType);
+            displayResults(splits);
+        } catch(err) {
+            showError(err.message);
+        }
+    }
+
+    async function fetchGameLog(playerId, type) {
+        const group = type === 'pitcher' ? 'pitching' : 'hitting';
+        const url = `https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=${group}&season=2026&language=en`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch game log. Check your connection.');
+        const data = await res.json();
+        const splits = data.stats?.[0]?.splits || [];
+        if (!splits.length) throw new Error('No 2026 season game log found for this player yet.');
+        return splits.reverse();
+    }
+
+    // ── Drought Logic ───────────────────────────────────────────────────────
+    function computeDrought(splits) {
+        let drought = 0;
+        let lastGameWithStat = null;
+        for (let i = 0; i < splits.length; i++) {
+            const val = parseStatValue(splits[i].stat?.[state.stat]);
+            if (val > 0) { lastGameWithStat = splits[i]; break; }
+            drought++;
+        }
+        return { drought, lastGameWithStat };
+    }
+
+    function parseStatValue(raw) {
+        if (raw === undefined || raw === null) return 0;
+        if (typeof raw === 'number') return raw;
+        const f = parseFloat(raw);
+        return isNaN(f) ? 0 : f;
+    }
+
+    function formatStat(val) {
+        if (typeof val === 'number') return Number.isInteger(val) ? val : val.toFixed(1);
+        return val;
+    }
+
+    // ── Loading ─────────────────────────────────────────────────────────────
+    function showLoading() {
+        document.getElementById('step3').style.display = 'none';
+        const section = document.getElementById('resultsSection');
+        section.style.display = 'block';
+        section.innerHTML = `
+            <div class="result-card">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Fetching 2026 game log for<br><strong>${state.player}</strong>…</p>
+                </div>
+            </div>
+        `;
+        updateStepIndicator(4);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showError(msg) {
+        document.getElementById('resultsSection').innerHTML = `
+            <div class="result-card">
+                <button class="back-btn" onclick="goBack(3)">← Back</button>
+                <div class="error-msg">
+                    <div class="error-icon">⚠️</div>
+                    <h3>Could not load data</h3>
+                    <p>${msg}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    // ── Display Results ─────────────────────────────────────────────────────
+    function displayResults(splits) {
+        const { drought, lastGameWithStat } = computeDrought(splits);
+        const totalGames = splits.length;
+        const fillPct = Math.min((drought / Math.max(totalGames, 1)) * 100, 100);
+        const seasonTotal = splits.reduce((acc, g) => acc + parseStatValue(g.stat?.[state.stat]), 0);
+        const gamesWithStat = splits.filter(g => parseStatValue(g.stat?.[state.stat]) > 0).length;
+        const droughtColor = drought === 0 ? '#2ecc71' : drought <= 3 ? '#f39c12' : '#e74c3c';
+
+        const badge = drought === 0
+            ? `<span class="hot-badge">🔥 Active</span>`
+            : drought >= 10 ? `<span class="cold-badge">🧊 Cold</span>` : '';
+
+        const lastDate = lastGameWithStat
+            ? `${lastGameWithStat.date || '–'} vs ${lastGameWithStat.opponent?.name || '–'}`
+            : null;
+
+        document.getElementById('resultsSection').innerHTML = `
+            <div class="result-card">
+                <button class="back-btn" onclick="goBack(3)">← New Search</button>
+
+                <div class="result-header">
+                    <div class="player-avatar">⚾</div>
+                    <div class="player-info">
+                        <h2>${state.player} ${badge}</h2>
+                        <div class="player-meta">
+                            <span class="meta-badge">${state.playerType === 'batter' ? '🏏 Batter' : '⚾ Pitcher'}</span>
+                            <span class="meta-badge">2026</span>
+                            <span class="meta-badge">${totalGames} GP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drought-display">
+                    <div class="drought-number">${drought}</div>
+                    <div class="drought-label">
+                        Game${drought !== 1 ? 's' : ''} Since Last
+                        <span class="drought-stat">${state.statLabel}</span>
+                    </div>
+                    ${drought === 0
+                        ? `<div class="drought-active">✅ Recorded one in the most recent game!</div>`
+                        : lastDate
+                            ? `<div class="drought-last">Last: ${lastDate}</div>`
+                            : `<div class="drought-last">No ${state.statLabel} recorded this season</div>`
+                    }
+                </div>
+
+                <div class="drought-meter">
+                    <div class="drought-fill" style="width:${fillPct}%;background:${droughtColor};"></div>
+                </div>
+
+                <div class="stats-summary-grid">
+                    <div class="summary-box">
+                        <div class="val">${formatStat(seasonTotal)}</div>
+                        <div class="lbl">Season ${state.statAbbr}</div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="val">${totalGames}</div>
+                        <div class="lbl">Games Played</div>
+                    </div>
+                    <div class="summary-box">
+                        <div class="val">${gamesWithStat}</div>
+                        <div class="lbl">Games w/ ${state.statAbbr}</div>
+                    </div>
+                </div>
+
+                <div class="game-log-section">
+                    <h3>📋 Recent Game Log (Last 20)</h3>
+                    <div class="table-scroll">
+                        ${buildGameLogTable(splits.slice(0, 20))}
+                    </div>
+                </div>
+            </div>
+        `;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function buildGameLogTable(splits) {
+        const abHeader = state.playerType === 'batter' ? 'AB' : 'IP';
+        const rows = splits.map((g, i) => {
+            const val = parseStatValue(g.stat?.[state.stat]);
+            const hasIt = val > 0;
+            const date = (g.date || '–').replace(/^\d{4}-/, '');
+            const opp = g.opponent?.name || '–';
+            const shortOpp = opp.length > 13 ? opp.substring(0, 13) + '…' : opp;
+            const matchup = g.isHome ? `vs ${shortOpp}` : `@ ${shortOpp}`;
+            const abVal = state.playerType === 'batter'
+                ? (g.stat?.atBats ?? '–')
+                : (g.stat?.inningsPitched ?? '–');
+            return `
+                <tr class="${hasIt ? 'success-row' : ''}">
+                    <td>${i + 1}</td>
+                    <td>${date}</td>
+                    <td>${matchup}</td>
+                    <td>${abVal}</td>
+                    <td class="${hasIt ? 'stat-value' : 'stat-zero'}">${formatStat(val)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <table class="game-log-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Matchup</th>
+                        <th>${abHeader}</th>
+                        <th>${state.statAbbr}</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        `;
+    }
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    setupSearch();
+    showStep(1);
+</script>
+</body>
+</html>
